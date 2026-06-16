@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['email', 'totalPoints', 'updatedAt']) 
+          && data.keys().size() == 3
+          && data.email is string && data.email.size() <= 200
+          && data.totalPoints is number && data.totalPoints >= 0
+          && data.updatedAt == request.time;
+    }
+
+    function isValidOperatorAccount(data) {
+      return data.keys().hasAll(['mobile', 'name', 'model', 'deviceId', 'status', 'ownerId', 'whitelistCode', 'createdAt'])
+          && data.keys().size() == 8
+          && data.mobile is string && data.mobile.size() == 10
+          && data.name is string && data.name.size() <= 100
+          && data.whitelistCode is string && data.whitelistCode.size() <= 20
+          && data.ownerId == request.auth.uid
+          && data.status in ['Active', 'Offline', 'Sync Required']
+          && data.createdAt == request.time;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['orderId', 'accountId', 'customer', 'mobile', 'lpgId', 'status', 'points', 'ownerId'])
+          && data.keys().size() >= 8
+          && data.orderId is string && data.orderId.size() <= 50
+          && data.accountId is string
+          && data.ownerId == request.auth.uid
+          && data.status in ['pending', 'completed'];
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['type', 'amount', 'reason', 'ownerId', 'createdAt'])
+          && data.keys().size() >= 5
+          && data.type in ['credit', 'debit']
+          && data.amount is number && data.amount > 0
+          && data.ownerId == request.auth.uid
+          && data.createdAt == request.time;
+    }
+
+    // --- Rules ---
+
+    match /userProfiles/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) 
+                    && incoming().email == existing().email
+                    && isValidUserProfile(incoming())
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints', 'updatedAt']);
+    }
+
+    match /operatorAccounts/{accountId} {
+      allow get: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isEmailVerified() && isValidId(accountId) && isValidOperatorAccount(incoming());
+      allow update: if isEmailVerified() && existing().ownerId == request.auth.uid 
+                    && incoming().ownerId == existing().ownerId
+                    && incoming().mobile == existing().mobile
+                    && isValidOperatorAccount(incoming())
+                    && (
+                      // Action: Sync
+                      incoming().diff(existing()).affectedKeys().hasOnly(['status', 'model', 'deviceId'])
+                    );
+      allow delete: if isEmailVerified() && existing().ownerId == request.auth.uid;
+    }
+
+    match /orders/{docId} {
+      allow get: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isEmailVerified() && isValidOrder(incoming());
+      allow update: if isEmailVerified() && existing().ownerId == request.auth.uid
+                    && incoming().ownerId == existing().ownerId
+                    && isValidOrder(incoming())
+                    && (
+                      // Action: Complete Order
+                      (existing().status == 'pending' && incoming().status == 'completed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'completedAt', 'points']))
+                    );
+    }
+
+    match /transactions/{txId} {
+      allow get: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isEmailVerified() && isValidTransaction(incoming());
+    }
+  }
+}
