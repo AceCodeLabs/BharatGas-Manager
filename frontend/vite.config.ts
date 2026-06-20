@@ -8,7 +8,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
-  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:3000';
 
   return {
     root: __dirname,
@@ -24,13 +23,6 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: path.resolve(__dirname, 'dist'),
       emptyOutDir: true,
-    },
-    server: {
-      hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-      proxy: {
-        '/api': apiBaseUrl,
-      },
     },
   };
 });

@@ -22,6 +22,7 @@ router.post('/:id/confirm', asyncHandler<AuthRequest>(async (req, res) => {
   let confirmedOrder: OrderDto | null = null;
   let officialOrderId = '';
   let accountMobile = '';
+  let accountBgToken = '';
 
   try {
     await session.withTransaction(async () => {
@@ -39,7 +40,9 @@ router.post('/:id/confirm', asyncHandler<AuthRequest>(async (req, res) => {
       }).session(session);
 
       if (!account) throw notFound('Account not found');
+      if (!account.bgToken) throw new HttpError(400, 'Account is missing bgToken. Re-link the account.');
       accountMobile = account.mobile;
+      accountBgToken = account.bgToken;
 
       const cost = Math.abs(order.points || 25);
 
@@ -65,7 +68,7 @@ router.post('/:id/confirm', asyncHandler<AuthRequest>(async (req, res) => {
 
   if (!confirmedOrder) throw notFound('Order not found');
 
-  await confirmDelivery(officialOrderId, accountMobile);
+  await confirmDelivery(officialOrderId, accountMobile, accountBgToken);
   res.json({ order: confirmedOrder });
 }));
 

@@ -1,6 +1,9 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 
 const TOKEN_KEY = 'bharatgas_token';
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+});
 
 export class ApiError extends Error {
   status: number;
@@ -34,7 +37,7 @@ export async function apiRequest<T>(path: string, options: AxiosRequestConfig = 
   }
 
   try {
-    const response = await axios.request<T>({
+    const response = await apiClient.request<T>({
       url: path,
       ...options,
       headers,

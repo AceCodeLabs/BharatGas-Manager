@@ -15,6 +15,7 @@ export const AddAccountModal = ({ isOpen, onClose, onCreated }: AddAccountModalP
   const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
+  const [otpAuthToken, setOtpAuthToken] = useState('');
   const [whitelistCode, setWhitelistCode] = useState('');
   const [deviceId, setDeviceId] = useState('');
   const [model, setModel] = useState('');
@@ -26,6 +27,7 @@ export const AddAccountModal = ({ isOpen, onClose, onCreated }: AddAccountModalP
     setStep('mobile');
     setMobile('');
     setOtp('');
+    setOtpAuthToken('');
     setWhitelistCode('');
     setDeviceId('');
     setModel('');
@@ -38,11 +40,12 @@ export const AddAccountModal = ({ isOpen, onClose, onCreated }: AddAccountModalP
     setError(null);
 
     try {
-      await accountsApi.sendOtp(mobile);
+      const response = await accountsApi.sendOtp(mobile);
       setOtp('');
+      setOtpAuthToken(response.otpAuthToken);
       setStep('otp');
       toast.success('Verification OTP sent!', {
-        description: `OTP sent to ${mobile}`,
+        description: response.message || `OTP sent to ${mobile}`,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send OTP');
@@ -57,9 +60,12 @@ export const AddAccountModal = ({ isOpen, onClose, onCreated }: AddAccountModalP
     setError(null);
 
     try {
+      if (!otpAuthToken) throw new Error('OTP session expired. Please send OTP again.');
+
       await accountsApi.create({
         mobile,
         otp,
+        otpAuthToken,
         whitelistCode: whitelistCode || undefined,
         deviceId: deviceId || undefined,
         model: model || undefined,
@@ -211,7 +217,10 @@ export const AddAccountModal = ({ isOpen, onClose, onCreated }: AddAccountModalP
                     </button>
                     <button
                       type="button"
-                      onClick={() => setStep('mobile')}
+                      onClick={() => {
+                        setOtpAuthToken('');
+                        setStep('mobile');
+                      }}
                       className="text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-white transition-colors"
                     >
                       Back to Mobile Number

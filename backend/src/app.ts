@@ -7,12 +7,15 @@ import { transactionsRoutes } from './routes/transactions.routes';
 import { dashboardRoutes } from './routes/dashboard.routes';
 import { bharatgasRoutes } from './routes/bharatgas.routes';
 import { HttpError } from './utils/http';
+import morgan from 'morgan';
 
 export async function createApp() {
   const app = express();
 
   app.use(cors());
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(morgan('tiny'));
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });

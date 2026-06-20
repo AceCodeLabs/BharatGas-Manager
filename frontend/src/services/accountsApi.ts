@@ -4,6 +4,7 @@ import { apiRequest } from '@/shared/api/client';
 export interface CreateAccountInput {
   mobile: string;
   otp: string;
+  otpAuthToken: string;
   whitelistCode?: string;
   deviceId?: string;
   model?: string;
@@ -19,7 +20,13 @@ export const accountsApi = {
   },
 
   sendOtp(mobile: string) {
-    return apiRequest<{ ok: true; data: unknown }>('/api/accounts/send-otp', {
+    return apiRequest<{
+      ok: true;
+      verification: unknown;
+      otpAuthToken: string;
+      otpTimeStamp?: string;
+      message?: string;
+    }>('/api/accounts/send-otp', {
       method: 'POST',
       data: { mobile },
     });
