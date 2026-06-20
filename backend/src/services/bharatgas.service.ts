@@ -37,9 +37,10 @@ export async function sendOtp(mobileNumber: string) {
         },
       }
     );
-
+    console.log(response.data);
     return response.data;
   } catch (error) {
+    console.error(error);
     if (error instanceof AxiosError && error.response) {
       throw new Error(parseBpclError(error.response.data));
     }
