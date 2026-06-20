@@ -124,14 +124,14 @@ export const Accounts = () => {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate(`/dashboard/accounts/${acc.id}`)}
+                onClick={() => navigate(`/accounts/${acc.id}`)}
                 className="flex-1 bg-green-500 hover:bg-green-600 text-black py-4 rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-lg shadow-green-500/10"
               >
                 <span className="text-sm uppercase tracking-tight">Manage Orders</span>
               </button>
 
               <button
-                onClick={() => navigate(`/dashboard/accounts/${acc.id}?tab=completed`)}
+                onClick={() => navigate(`/accounts/${acc.id}?tab=completed`)}
                 className="bg-white/5 hover:bg-white/10 text-gray-300 px-6 py-4 rounded-2xl font-black transition-all text-xs uppercase tracking-widest border border-white/5"
               >
                 Done

@@ -4,12 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/server.ts",
+    "dev": "nodemon",
     "build": "esbuild src/server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "lint": "eslint . && tsc --noEmit"
   },
   "dependencies": {
+    "axios": "^1.18.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -24,6 +25,7 @@
     "@types/node": "^22.14.0",
     "esbuild": "^0.25.0",
     "eslint": "^10.4.0",
+    "nodemon": "^3.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.59.3"

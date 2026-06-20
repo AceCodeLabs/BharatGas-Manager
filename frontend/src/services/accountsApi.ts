@@ -18,10 +18,17 @@ export const accountsApi = {
     return apiRequest<{ account: OperatorAccount }>(`/api/accounts/${id}`);
   },
 
+  sendOtp(mobile: string) {
+    return apiRequest<{ ok: true; data: unknown }>('/api/accounts/send-otp', {
+      method: 'POST',
+      data: { mobile },
+    });
+  },
+
   create(input: CreateAccountInput) {
     return apiRequest<{ account: OperatorAccount }>('/api/accounts', {
       method: 'POST',
-      body: JSON.stringify(input),
+      data: input,
     });
   },
 

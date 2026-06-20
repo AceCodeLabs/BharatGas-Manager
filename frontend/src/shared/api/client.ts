@@ -1,3 +1,5 @@
+import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
+
 const TOKEN_KEY = 'bharatgas_token';
 
 export class ApiError extends Error {
@@ -21,29 +23,32 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: AxiosRequestConfig = {}): Promise<T> {
   const token = getToken();
-  const headers = new Headers(options.headers);
-
-  if (!headers.has('Content-Type') && options.body) {
-    headers.set('Content-Type', 'application/json');
-  }
+  const headers = {
+    ...options.headers,
+  };
 
   if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+    headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(path, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await axios.request<T>({
+      url: path,
+      ...options,
+      headers,
+    });
 
-  const data = await response.json().catch(() => null);
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError && error.response) {
+      if (error.response.status === 401) clearToken();
 
-  if (!response.ok) {
-    if (response.status === 401) clearToken();
-    throw new ApiError(data?.error || 'Request failed', response.status);
+      const data = error.response.data as { error?: string } | null;
+      throw new ApiError(data?.error || 'Request failed', error.response.status);
+    }
+
+    throw new ApiError(error instanceof Error ? error.message : 'Request failed', 0);
   }
-
-  return data as T;
 }

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Types } from 'mongoose';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
 import { asyncHandler, HttpError, notFound } from '../utils/http';
-import { fetchOrders, syncLogin } from '../services/bharatgas.service';
+import { fetchOrders, sendOtp, syncLogin } from '../services/bharatgas.service';
 import { Order, toOrderDto, type OrderDocument } from '../models/order.model';
 import { OperatorAccount, toAccountDto, type AccountDocument } from '../models/account.model';
 
@@ -15,13 +15,22 @@ router.get('/', asyncHandler<AuthRequest>(async (req, res) => {
   res.json({ accounts: accounts.map(account => toAccountDto(account as AccountDocument)) });
 }));
 
+router.post('/send-otp', asyncHandler<AuthRequest>(async (req, res) => {
+  const mobile = String(req.body.mobile || '').trim();
+
+  if (!/^\d{10}$/.test(mobile)) throw new HttpError(400, 'A valid 10-digit mobile number is required');
+
+  const data = await sendOtp(mobile);
+  res.json({ ok: true, data });
+}));
+
 router.post('/', asyncHandler<AuthRequest>(async (req, res) => {
   const mobile = String(req.body.mobile || '').trim();
   const otp = String(req.body.otp || '');
   const whitelistCode = String(req.body.whitelistCode || 'BG-998').trim().toUpperCase();
 
   if (!/^\d{10}$/.test(mobile)) throw new HttpError(400, 'A valid 10-digit mobile number is required');
-  if (otp !== '123456' || whitelistCode !== 'BG-998') throw new HttpError(400, 'Invalid OTP or whitelist code');
+  if (!/^\d{6}$/.test(otp) || whitelistCode !== 'BG-998') throw new HttpError(400, 'Invalid OTP or whitelist code');
 
   const deviceId = String(req.body.deviceId || `dev-${Math.random().toString(36).slice(2, 9)}`);
   const model = String(req.body.model || 'Generic Android');

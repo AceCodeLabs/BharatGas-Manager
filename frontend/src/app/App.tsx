@@ -36,8 +36,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
-          <Route path="/dashboard/accounts" element={<ProtectedRoute><Layout><Accounts /></Layout></ProtectedRoute>} />
-          <Route path="/dashboard/accounts/:id" element={<ProtectedRoute><Layout><AccountDetail /></Layout></ProtectedRoute>} />
+          <Route path="/accounts" element={<ProtectedRoute><Layout><Accounts /></Layout></ProtectedRoute>} />
+          <Route path="/accounts/:id" element={<ProtectedRoute><Layout><AccountDetail /></Layout></ProtectedRoute>} />
           <Route path="/orders" element={<ProtectedRoute><Layout><Orders /></Layout></ProtectedRoute>} />
           <Route path="/transactions" element={<ProtectedRoute><Layout><Transactions /></Layout></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -32,17 +32,23 @@ export const AddAccountModal = ({ isOpen, onClose, onCreated }: AddAccountModalP
     setError(null);
   };
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError(null);
+
+    try {
+      await accountsApi.sendOtp(mobile);
+      setOtp('');
       setStep('otp');
-      toast.success('Verification codes sent!', {
-        description: 'Test Codes: [OTP: 123456] [WHITELIST: BG-998]',
-        duration: 8000,
+      toast.success('Verification OTP sent!', {
+        description: `OTP sent to ${mobile}`,
       });
-    }, 800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -146,6 +152,8 @@ export const AddAccountModal = ({ isOpen, onClose, onCreated }: AddAccountModalP
                       )}
                     </AnimatePresence>
                   </div>
+
+                  {error && <p className="text-center text-red-500 text-xs font-bold">{error}</p>}
 
                   <button
                     type="submit"

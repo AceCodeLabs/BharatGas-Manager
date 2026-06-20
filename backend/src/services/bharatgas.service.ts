@@ -1,3 +1,5 @@
+import axios, { AxiosError } from 'axios';
+
 export interface BharatGasOrder {
   orderId: string;
   customer: string;
@@ -5,6 +7,45 @@ export interface BharatGasOrder {
   area: string;
   lpgId?: string;
   points?: number;
+}
+
+const BPCL_SEND_OTP_URL = 'https://api.cep.bpcl.in/bpclservices/v2/bpcl/user/otp/send';
+
+function parseBpclError(data: unknown) {
+  if (data && typeof data === 'object') {
+    const record = data as Record<string, unknown>;
+    const message = record.message || record.error || record.errorMessage;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+
+  return 'Failed to send OTP';
+}
+
+export async function sendOtp(mobileNumber: string) {
+  try {
+    const response = await axios.post<unknown>(
+      BPCL_SEND_OTP_URL,
+      {
+        mobileNumber,
+        channel: 'MOBILE',
+        loginType: 'MOBILE',
+      },
+      {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError && error.response) {
+      throw new Error(parseBpclError(error.response.data));
+    }
+
+    throw new Error(error instanceof Error ? error.message : 'Failed to send OTP');
+  }
 }
 
 export async function syncLogin(mobile: string, deviceId: string) {
