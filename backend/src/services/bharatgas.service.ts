@@ -36,6 +36,18 @@ export interface BpclValidateOtpResponse {
   [key: string]: unknown;
 }
 
+interface BpclOAuthResponse {
+  access_token?: string;
+  accessToken?: string;
+  token?: string;
+  expires_in?: number;
+  expiresIn?: number;
+  [key: string]: unknown;
+}
+
+let cachedOAuthToken = '';
+let cachedOAuthExpiresAt = 0;
+
 function parseBpclError(data: unknown) {
   if (data && typeof data === 'object') {
     const record = data as Record<string, unknown>;
@@ -70,32 +82,78 @@ export class BpclApiError extends Error {
   }
 }
 
-function buildBpclHeaders(bgToken?: string) {
+function buildBpclHeaders(token?: string) {
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'Content-Type': 'application/json',
   };
 
-  if (bgToken) {
-    headers.Authorization = bgToken.startsWith('Bearer ')
-      ? bgToken
-      : `Bearer ${bgToken}`;
+  if (token) {
+    headers.Authorization = token.startsWith('Bearer ')
+      ? token
+      : `Bearer ${token}`;
   }
 
   return headers;
 }
 
-async function postBpcl<TResponse>(url: string, data: Record<string, unknown>, bgToken?: string) {
+function getOAuthTokenFromResponse(data: BpclOAuthResponse) {
+  return data.access_token || data.accessToken || data.token || '';
+}
+
+function getOAuthExpiresAt(data: BpclOAuthResponse) {
+  const seconds = data.expires_in || data.expiresIn || 300;
+  return Date.now() + Math.max(seconds - 30, 30) * 1000;
+}
+
+async function fetchOAuthToken() {
+  if (cachedOAuthToken && cachedOAuthExpiresAt > Date.now()) return cachedOAuthToken;
+
+  const payload = {
+    client_id: env.bpclOAuthClientId,
+    client_secret: env.bpclOAuthClientSecret,
+    grant_type: env.bpclOAuthGrantType,
+  };
+
   try {
-    console.log(url);
-    const response = await axios.post<TResponse>(url, data, {
-      headers: buildBpclHeaders(bgToken),
+    const response = await axios.request<BpclOAuthResponse>({
+      url: env.bpclOAuthUrl,
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      data: payload,
     });
-    console.log(response.data); 
+
+    const token = getOAuthTokenFromResponse(response.data);
+    if (!token) throw new Error('BPCL OAuth response did not include an access token');
+
+    cachedOAuthToken = token;
+    cachedOAuthExpiresAt = getOAuthExpiresAt(response.data);
+    return cachedOAuthToken;
+  } catch (error) {
+    cachedOAuthToken = '';
+    cachedOAuthExpiresAt = 0;
+
+    if (error instanceof AxiosError && error.response) {
+      console.log('Error:', error.response.data);
+      throw new BpclApiError(error.response.status, parseBpclError(error.response.data));
+    }
+
+    throw new Error(error instanceof Error ? error.message : 'BPCL OAuth request failed');
+  }
+}
+
+async function postBpcl<TResponse>(url: string, data: Record<string, unknown>, token?: string) {
+  try {
+    const response = await axios.post<TResponse>(url, data, {
+      headers: buildBpclHeaders(token),
+    });
+
     return response.data;
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
-      console.log(error.response.data, error.response.status);
       throw new BpclApiError(error.response.status, parseBpclError(error.response.data));
     }
 
@@ -103,29 +161,36 @@ async function postBpcl<TResponse>(url: string, data: Record<string, unknown>, b
   }
 }
 
-export function verifyUser(mobileNumber: string) {
+export async function verifyUser(mobileNumber: string) {
+  const token = await fetchOAuthToken();
+
   return postBpcl<BpclVerifyUserResponse>(env.bpclVerifyUserUrl, {
     customerId: mobileNumber,
     channel: 'MOBILE',
-  });
+  }, token);
 }
 
-export function sendOtp(mobileNumber: string) {
+export async function sendOtp(mobileNumber: string) {
+  console.log('Sending OTP to mobile:', mobileNumber);
+  const token = await fetchOAuthToken();
+  console.log('Token:', token);
   return postBpcl<BpclSendOtpResponse>(env.bpclSendOtpUrl, {
-    // mobileNumber,
-    // channel: 'MOBILE',
-    // loginType: 'MOBILE',
-  });
+    mobileNumber,
+    channel: 'MOBILE',
+    loginType: 'MOBILE',
+  }, token);
 }
 
-export function validateOtp(mobileNumber: string, otp: string, otpAuthToken: string, deviceId: string) {
+export async function validateOtp(mobileNumber: string, otp: string, otpAuthToken: string, deviceId: string) {
+  const token = await fetchOAuthToken();
+
   return postBpcl<BpclValidateOtpResponse>(env.bpclValidateOtpUrl, {
     mobileNumber,
     otp,
     otpAuthToken,
     channel: 'MOBILE',
     deviceId,
-  });
+  }, token);
 }
 
 export async function syncLogin(mobile: string, deviceId: string) {

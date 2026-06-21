@@ -38,7 +38,6 @@ router.post('/send-otp', asyncHandler<AuthRequest>(async (req, res) => {
   if (!/^\d{10}$/.test(mobile)) throw new HttpError(400, 'A valid 10-digit mobile number is required');
 
   try {
-    console.log('Sending OTP to mobile:', mobile);
     // const verification = await verifyUser(mobile);
 
     // if (verification.registered === false) {
@@ -50,7 +49,7 @@ router.post('/send-otp', asyncHandler<AuthRequest>(async (req, res) => {
 
     res.json({
       ok: true,
-      verification,
+      // verification,
       otpAuthToken: otp.otpAuthToken,
       otpTimeStamp: otp.otpTimeStamp,
       message: otp.message,
